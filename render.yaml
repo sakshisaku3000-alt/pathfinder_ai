@@ -3,21 +3,18 @@ services:
     name: pathfinder-ai
     env: python
     plan: free
-    # Deploy from project root
+    # Deploy from project root since main.py is there
     buildCommand: |
-      # Install backend dependencies
-      cd backend
+      # Install backend dependencies (main.py is in root)
       pip install -r requirements.txt
-      # Install Node.js and build frontend
-      cd ../frontend
-      # Use npm instead of yarn for better compatibility
+      # Build frontend
+      cd frontend
       npm install
       npm run build
-      # Move build to backend directory for easier access
-      cp -r build ../backend/frontend_build
-    startCommand: |
-      cd backend
-      uvicorn main:app --host 0.0.0.0 --port $PORT
+      # Verify build was created
+      echo "Build contents:"
+      ls -la build/
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: HF_API_KEY
         sync: false

@@ -16,12 +16,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Multiple possible build directory locations
+# Multiple possible build directory locations for root-level main.py
 possible_build_dirs = [
-    "frontend_build",  # Copied during build
-    "../frontend/build",  # If running from backend folder
-    "frontend/build",  # If running from root
-    "build"  # Direct build folder
+    "frontend/build",     # Standard location when main.py is in root
+    "build",              # If build folder is moved to root
+    "./frontend/build",   # Explicit relative path
 ]
 
 BUILD_DIR = None
@@ -47,6 +46,8 @@ if BUILD_DIR:
 else:
     print("⚠️  No frontend build found. Running in API-only mode.")
     print("Checked directories:", possible_build_dirs)
+    print("Current working directory:", os.getcwd())
+    print("Files in current directory:", os.listdir("."))
 
 # CORS configuration
 app.add_middleware(
