@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from fastapi import StaticFiles
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict
