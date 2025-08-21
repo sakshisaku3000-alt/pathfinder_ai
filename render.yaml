@@ -1,9 +1,22 @@
 services:
+  # Backend service (FastAPI)
   - type: web
-    name: my-fastapi-react-app
+    name: fastapi-backend
     env: python
-    plan: free
-    buildCommand: |
-      pip install -r requirements.txt
-      cd frontend && npm install && npm run build
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: FRONTEND_URL
+        value: https://your-frontend-service.onrender.com  # Replace with your frontend Render URL
+
+  # Frontend service (React)
+  - type: web
+    name: react-frontend
+    env: node
+    rootDir: frontend
+    buildCommand: yarn install && yarn build
+    startCommand: yarn start
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://fastapi-backend.onrender.com  # Replace with your backend Render URL

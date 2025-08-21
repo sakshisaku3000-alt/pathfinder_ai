@@ -14,10 +14,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
+frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 # Need CORS so React frontend can talk to this backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React runs on port 3000
+    allow_origins=["frontend_url"],  # React runs on port 3000
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -312,4 +313,5 @@ async def get_example():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
