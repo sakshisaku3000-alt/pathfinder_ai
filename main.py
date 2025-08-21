@@ -7,6 +7,7 @@ from enum import Enum
 import requests
 import os
 from datetime import datetime
+import uvicorn
 
 # Setting up FastAPI
 app = FastAPI(
@@ -15,28 +16,32 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Updated for Render deployment - build directory path
 BUILD_DIR = os.path.join(os.getcwd(), "frontend", "build")
 
-# Check if the build folder exists
+# Check if the build folder exists and mount static files
 if os.path.exists(BUILD_DIR) and os.path.isdir(BUILD_DIR):
+    app.mount("/static", StaticFiles(directory=os.path.join(BUILD_DIR, "static")), name="static")
     app.mount("/", StaticFiles(directory=BUILD_DIR, html=True), name="frontend")
 else:
     print(f"Warning: Build folder not found at {BUILD_DIR}")
 
-#frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
-# Need CORS so React frontend can talk to this backend
+# CORS configuration for production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # You might want to restrict this in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Hugging Face setup (using their free API)
+# Hugging Face setup - Using environment variable
 HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
-# Get API key from environment
-HUGGING_FACE_API_KEY = os.getenv("HF_API_KEY", "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")  # TODO: Set this in env!
+# IMPORTANT: Set this as an environment variable in Render
+HUGGING_FACE_API_KEY = os.getenv("HF_API_KEY")
+
+if not HUGGING_FACE_API_KEY:
+    print("Warning: HF_API_KEY environment variable not set!")
 
 # Enums for field validation
 class FieldOfStudy(str, Enum):
@@ -108,10 +113,11 @@ class CareerRecommendation(BaseModel):
 # API Endpoints
 @app.get("/")
 async def root():
-    """Root endpoint - API information"""
+    """Root endpoint - serves the frontend or API information"""
     return {
-        "message": "PathFinder AI API - Simplified Version",
+        "message": "PathFinder AI API - Production Version",
         "version": "1.0.0",
+        "status": "live",
         "endpoints": {
             "health": "/health",
             "analyze": "/api/v1/analyze",
@@ -121,19 +127,18 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint for Render"""
     return {
         "status": "healthy",
         "api_version": "1.0.0",
-        "timestamp": datetime.now()
+        "timestamp": datetime.now(),
+        "environment": "production"
     }
 
 def create_ai_prompt(assessment: CareerAssessmentRequest) -> str:
     """
     Creates a prompt for the AI model based on user's answers
-    Removed reality check questions to keep it simpler
     """
-    # Building a detailed prompt so AI understands the context
     prompt = f"""You are a career counselor helping a Masters student decide between PhD and Industry.
 
 Student Profile:
@@ -173,50 +178,46 @@ async def get_ai_analysis(prompt: str) -> Dict:
     Calls Hugging Face API to get career advice
     Returns structured data from AI response
     """
+    if not HUGGING_FACE_API_KEY:
+        print("No API key found, using fallback response")
+        return generate_fallback_response()
+        
     headers = {"Authorization": f"Bearer {HUGGING_FACE_API_KEY}"}
     
     try:
-        # Making the API call
         response = requests.post(
             HUGGING_FACE_API_URL,
             headers=headers,
             json={
                 "inputs": prompt,
                 "parameters": {
-                    "max_length": 300,  # Keeping it reasonable length
+                    "max_length": 300,
                     "temperature": 0.7  
                 }
             },
-            timeout=10
+            timeout=30  # Increased timeout for production
         )
         
         if response.status_code == 200:
             result = response.json()
-            # HF returns list sometimes, dict other times
             ai_text = result[0]['generated_text'] if isinstance(result, list) else result.get('generated_text', '')
-            
-            # Parse the AI response into our format
             return parse_ai_response(ai_text)
         else:
-            # use backup if something went wrong
             print(f"HF API error: {response.status_code}")
             return generate_fallback_response()
             
     except Exception as e:
-        # If the API fails, still give user something useful
         print(f"Error calling AI: {e}")
         return generate_fallback_response()
 
 def parse_ai_response(ai_text: str) -> Dict:
     """
     Parse AI text into structured format
-    Basic parsing - good enough for MVP
     """
-    # Simple parsing
     lines = ai_text.strip().split('\n')
     
     # Extract recommendation
-    recommendation = "PhD Path Recommended"  # Default
+    recommendation = "PhD Path Recommended"
     if "industry" in ai_text.lower():
         recommendation = "Industry Path Recommended"
     elif "both" in ai_text.lower():
@@ -258,14 +259,13 @@ def parse_ai_response(ai_text: str) -> Dict:
     return {
         "recommendation": recommendation,
         "confidence": confidence,
-        "insights": insights[:3],  # Limit to 3
-        "action_items": action_items[:4]  # Limit to 4
+        "insights": insights[:3],
+        "action_items": action_items[:4]
     }
 
 def generate_fallback_response() -> Dict:
     """
     Generate a reasonable response if AI fails
-    Always better to give something than error out!
     """
     return {
         "recommendation": "Both Paths Are Viable",
@@ -287,16 +287,11 @@ def generate_fallback_response() -> Dict:
 async def analyze_career_path(assessment: CareerAssessmentRequest):
     """
     Analyze user profile using AI and provide career recommendations
-    This is the main endpoint that does all the work!
     """
     try:
-        # Create AI prompt from the assessment
         prompt = create_ai_prompt(assessment)
-        
-        # Get AI analysis
         ai_result = await get_ai_analysis(prompt)
         
-        # Return structured response
         return CareerRecommendation(
             ai_recommendation=ai_result["recommendation"],
             confidence_level=ai_result["confidence"],
@@ -306,21 +301,20 @@ async def analyze_career_path(assessment: CareerAssessmentRequest):
         )
         
     except Exception as e:
-        # Log error and return generic response
         print(f"Error in analyze: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Simple example endpoint for testing
 @app.get("/api/v1/example")
 async def get_example():
     """Get an example response to test if API is working"""
     return {
         "message": "API is working! Use POST /api/v1/analyze with assessment data",
         "example_field": "Computer Science",
-        "example_gpa": "1.4-1.7"
+        "example_gpa": "1.4-1.7",
+        "status": "production"
     }
 
+# Main entry point for Render
 if __name__ == "__main__":
-    import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
