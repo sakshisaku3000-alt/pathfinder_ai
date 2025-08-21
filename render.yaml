@@ -1,22 +1,23 @@
 services:
-  # Backend service (FastAPI)
   - type: web
-    name: fastapi-backend
+    name: pathfinder-ai
     env: python
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    # Deploy from project root
+    buildCommand: |
+      # Install backend dependencies
+      cd backend
+      pip install -r requirements.txt
+      # Install Node.js and build frontend
+      cd ../frontend
+      # Use npm instead of yarn for better compatibility
+      npm install
+      npm run build
+      # Move build to backend directory for easier access
+      cp -r build ../backend/frontend_build
+    startCommand: |
+      cd backend
+      uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: FRONTEND_URL
-        value: https://your-frontend-service.onrender.com  # Replace with your frontend Render URL
-
-  # Frontend service (React)
-  - type: web
-    name: react-frontend
-    env: node
-    rootDir: frontend
-    buildCommand: yarn install && yarn build
-    startCommand: yarn start
-    envVars:
-      - key: REACT_APP_API_URL
-        value: https://fastapi-backend.onrender.com  # Replace with your backend Render URL
+      - key: HF_API_KEY
+        sync: false

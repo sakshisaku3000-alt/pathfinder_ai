@@ -16,32 +16,53 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Updated for Render deployment - build directory path
-BUILD_DIR = os.path.join(os.getcwd(), "frontend", "build")
+# Multiple possible build directory locations
+possible_build_dirs = [
+    "frontend_build",  # Copied during build
+    "../frontend/build",  # If running from backend folder
+    "frontend/build",  # If running from root
+    "build"  # Direct build folder
+]
 
-# Check if the build folder exists and mount static files
-if os.path.exists(BUILD_DIR) and os.path.isdir(BUILD_DIR):
-    app.mount("/static", StaticFiles(directory=os.path.join(BUILD_DIR, "static")), name="static")
-    app.mount("/", StaticFiles(directory=BUILD_DIR, html=True), name="frontend")
+BUILD_DIR = None
+for path in possible_build_dirs:
+    if os.path.exists(path) and os.path.isdir(path):
+        BUILD_DIR = os.path.abspath(path)
+        break
+
+# Mount static files if build directory exists
+if BUILD_DIR:
+    try:
+        # Mount static assets
+        static_dir = os.path.join(BUILD_DIR, "static")
+        if os.path.exists(static_dir):
+            app.mount("/static", StaticFiles(directory=static_dir), name="static")
+        
+        # Mount main HTML files (this should be last)
+        app.mount("/", StaticFiles(directory=BUILD_DIR, html=True), name="frontend")
+        print(f"✅ Frontend build mounted from: {BUILD_DIR}")
+    except Exception as e:
+        print(f"❌ Error mounting frontend: {e}")
+        BUILD_DIR = None
 else:
-    print(f"Warning: Build folder not found at {BUILD_DIR}")
+    print("⚠️  No frontend build found. Running in API-only mode.")
+    print("Checked directories:", possible_build_dirs)
 
-# CORS configuration for production
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # You might want to restrict this in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Hugging Face setup - Using environment variable
+# Hugging Face setup
 HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
-# IMPORTANT: Set this as an environment variable in Render
 HUGGING_FACE_API_KEY = os.getenv("HF_API_KEY")
 
 if not HUGGING_FACE_API_KEY:
-    print("Warning: HF_API_KEY environment variable not set!")
+    print("⚠️  Warning: HF_API_KEY environment variable not set!")
 
 # Enums for field validation
 class FieldOfStudy(str, Enum):
@@ -65,7 +86,7 @@ class GPARange(str, Enum):
     AVERAGE = "2.8-3.3"
     BELOW_AVG = "3.4-4.0"
 
-# Pydantic models for request validation
+# Pydantic models
 class AcademicProfile(BaseModel):
     field_of_study: FieldOfStudy
     specialization: str = Field(..., min_length=2, max_length=100)
@@ -96,7 +117,6 @@ class WorkStyle(BaseModel):
     future_vision: str
     priorities: List[str] = Field(..., min_items=2, max_items=5)
 
-# Main request model
 class CareerAssessmentRequest(BaseModel):
     academic: AcademicProfile
     experience: ExperienceProfile
@@ -113,11 +133,13 @@ class CareerRecommendation(BaseModel):
 # API Endpoints
 @app.get("/")
 async def root():
-    """Root endpoint - serves the frontend or API information"""
+    """Root endpoint"""
     return {
-        "message": "PathFinder AI API - Production Version",
+        "message": "PathFinder AI API - Live on Render!",
         "version": "1.0.0",
-        "status": "live",
+        "status": "production",
+        "frontend_mounted": BUILD_DIR is not None,
+        "build_path": BUILD_DIR if BUILD_DIR else "Not found",
         "endpoints": {
             "health": "/health",
             "analyze": "/api/v1/analyze",
@@ -125,20 +147,33 @@ async def root():
         }
     }
 
+@app.get("/api")
+async def api_info():
+    """API information endpoint"""
+    return {
+        "message": "PathFinder AI API",
+        "version": "1.0.0",
+        "status": "healthy",
+        "endpoints": {
+            "analyze": "/api/v1/analyze",
+            "example": "/api/v1/example",
+            "docs": "/docs"
+        }
+    }
+
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for Render"""
+    """Health check endpoint"""
     return {
         "status": "healthy",
         "api_version": "1.0.0",
         "timestamp": datetime.now(),
-        "environment": "production"
+        "environment": "production",
+        "frontend_status": "mounted" if BUILD_DIR else "not_found"
     }
 
 def create_ai_prompt(assessment: CareerAssessmentRequest) -> str:
-    """
-    Creates a prompt for the AI model based on user's answers
-    """
+    """Creates a prompt for the AI model based on user's answers"""
     prompt = f"""You are a career counselor helping a Masters student decide between PhD and Industry.
 
 Student Profile:
@@ -174,10 +209,7 @@ Keep the response concise and actionable."""
     return prompt
 
 async def get_ai_analysis(prompt: str) -> Dict:
-    """
-    Calls Hugging Face API to get career advice
-    Returns structured data from AI response
-    """
+    """Calls Hugging Face API to get career advice"""
     if not HUGGING_FACE_API_KEY:
         print("No API key found, using fallback response")
         return generate_fallback_response()
@@ -195,7 +227,7 @@ async def get_ai_analysis(prompt: str) -> Dict:
                     "temperature": 0.7  
                 }
             },
-            timeout=30  # Increased timeout for production
+            timeout=30
         )
         
         if response.status_code == 200:
@@ -211,26 +243,21 @@ async def get_ai_analysis(prompt: str) -> Dict:
         return generate_fallback_response()
 
 def parse_ai_response(ai_text: str) -> Dict:
-    """
-    Parse AI text into structured format
-    """
+    """Parse AI text into structured format"""
     lines = ai_text.strip().split('\n')
     
-    # Extract recommendation
     recommendation = "PhD Path Recommended"
     if "industry" in ai_text.lower():
         recommendation = "Industry Path Recommended"
     elif "both" in ai_text.lower():
         recommendation = "Both Paths Are Viable"
     
-    # Extract confidence
     confidence = "Moderate Confidence"
     if "strongly" in ai_text.lower() or "clearly" in ai_text.lower():
         confidence = "High Confidence"
     elif "slightly" in ai_text.lower() or "somewhat" in ai_text.lower():
         confidence = "Low Confidence"
     
-    # Extract insights and action items
     insights = []
     action_items = []
     
@@ -264,9 +291,7 @@ def parse_ai_response(ai_text: str) -> Dict:
     }
 
 def generate_fallback_response() -> Dict:
-    """
-    Generate a reasonable response if AI fails
-    """
+    """Generate a reasonable response if AI fails"""
     return {
         "recommendation": "Both Paths Are Viable",
         "confidence": "Moderate Confidence",
@@ -285,9 +310,7 @@ def generate_fallback_response() -> Dict:
 
 @app.post("/api/v1/analyze", response_model=CareerRecommendation)
 async def analyze_career_path(assessment: CareerAssessmentRequest):
-    """
-    Analyze user profile using AI and provide career recommendations
-    """
+    """Analyze user profile using AI and provide career recommendations"""
     try:
         prompt = create_ai_prompt(assessment)
         ai_result = await get_ai_analysis(prompt)
@@ -311,10 +334,10 @@ async def get_example():
         "message": "API is working! Use POST /api/v1/analyze with assessment data",
         "example_field": "Computer Science",
         "example_gpa": "1.4-1.7",
-        "status": "production"
+        "status": "production",
+        "frontend_available": BUILD_DIR is not None
     }
 
-# Main entry point for Render
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
