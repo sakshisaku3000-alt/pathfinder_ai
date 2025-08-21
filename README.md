@@ -2,6 +2,11 @@
 
 An AI-powered web application that helps Masters students make informed decisions between pursuing a PhD or entering industry careers.
 
+## 🌐 Live Application
+
+**Live Demo:** https://pathfinder-ai-19.onrender.com/
+**API Documentation:** https://pathfinder-ai-17.onrender.com/docs
+
 ## Features
 
 * **AI-Powered Analysis**: It uses Hugging Face's language models to provide personalized career recommendations
@@ -10,12 +15,14 @@ An AI-powered web application that helps Masters students make informed decision
 * **Modern UI**: React-based frontend with intuitive user experience
 * **Editable Results**: Users can modify AI-generated insights
 * **No Authentication Required**: Instant access without login
+* **Production Deployment**: Fully deployed on Render with separate frontend and backend services
 
 ## Technology Stack
 
 * **Backend**: Python 3.8+, FastAPI, Pydantic
 * **Frontend**: React 18, JavaScript, CSS3
 * **AI Integration**: Hugging Face Transformers API
+* **Deployment**: Render (Production)
 * **Testing**: Python unittest, Manual testing
 
 ## Prerequisites
@@ -24,7 +31,7 @@ An AI-powered web application that helps Masters students make informed decision
 * Node.js 14+ and npm
 * Hugging Face API key (free tier available)
 
-## Installation
+## Installation (Local Development)
 
 ### Backend Setup
 
@@ -53,7 +60,7 @@ An AI-powered web application that helps Masters students make informed decision
 
 1. Navigate to the frontend directory:
 
-### `cd frontend`
+### `cd backend/frontend`
 
 
 2. Install dependencies:
@@ -76,7 +83,7 @@ API documentation: `http://localhost:8000/docs`
 
 In a new terminal:
 
-### `cd frontend`
+### `cd backend/frontend`
 ### `npm start`
 
 The application will open at `http://localhost:3000`
@@ -90,27 +97,8 @@ The application will open at `http://localhost:3000`
 
 ### Frontend Tests
 
-### `cd frontend`
+### `cd backend/frontend`
 ### `npm test`
-
-
-## Project Structure
-
-```
-pathfinder-ai/
-├── backend/
-│   ├── main.py           # FastAPI application
-│   ├── requirements.txt  # Python dependencies
-│   └── test_main.py      # API tests
-├── frontend/
-│   ├── public/
-│   ├── src/
-│   │   ├── App.js        # Main React component
-│   │   ├── App.css       # Styling
-│   │   └── index.js      # Entry point
-│   └── package.json
-└── README.md
-```
 
 ## API Endpoints
 
@@ -119,41 +107,9 @@ pathfinder-ai/
 * `POST /api/v1/analyze` - Analyze career profile and get recommendations
 * `GET /api/v1/example` - Get example assessment data
 
-## How It Works
-
-1. Users complete a comprehensive assessment covering:
-   * Academic background (GPA, research papers, thesis status)
-   * Experience profile (internships, research, teaching)
-   * Career motivations
-   * Working style preferences
-   * Future vision and priorities
-
-2. The FastAPI backend processes the data:
-   * Validates input using Pydantic models
-   * Creates contextual prompt for AI
-   * Calls Hugging Face API for analysis
-   * Parses and structures the response
-
-3. Results include:
-   * Primary recommendation (PhD/Industry/Both)
-   * Confidence level
-   * Detailed editable analysis
-   * Personalized insights and action items
-
-## Key Design Decisions
-
-* **No Database**: Simplifies MVP, reduces complexity
-* **Single Editable Text Area**: Cleaner UX for results
-* **Fallback Responses**: Ensures functionality if API fails
-* **Step-by-Step Assessment**: Reduces cognitive load
-
 ## Contributing
 
 This is a demonstration project for academic purposes.
-
-## License
-
-MIT License
 
 ## Author
 
