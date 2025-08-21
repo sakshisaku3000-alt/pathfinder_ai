@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict
@@ -14,11 +15,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
-frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
+
+#frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 # Need CORS so React frontend can talk to this backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["frontend_url"],  # React runs on port 3000
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
