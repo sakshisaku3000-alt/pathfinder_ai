@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import './App.css';
 
+// API Configuration
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://pathfinder-ai-17.onrender.com/api/v1'
+  : 'http://localhost:8000/api/v1';
+
 function App() {
   // Using state to track which step user is on
   const [currentStep, setCurrentStep] = useState(0);
@@ -101,12 +106,35 @@ function App() {
     };
 
     try {
-      const response = await axios.post('http://localhost:8000/api/v1/analyze', apiData);
+      console.log('Sending request to:', `${API_BASE_URL}/analyze`);
+      console.log('API Data:', apiData);
+      
+      const response = await axios.post(`${API_BASE_URL}/analyze`, apiData, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000 // 30 second timeout
+      });
+      
+      console.log('Response received:', response.data);
       setResults(response.data);
-      setCurrentStep(7); // Results page (changed from 8 to 7)
+      setCurrentStep(7); // Results page
     } catch (error) {
-      alert('Error! Please check all fields are filled and backend is running');
-      console.error(error);
+      console.error('API Error:', error);
+      
+      let errorMessage = 'Error! Please try again.';
+      if (error.response) {
+        // Server responded with error status
+        errorMessage = `Server error: ${error.response.status} - ${error.response.data?.detail || 'Unknown error'}`;
+      } else if (error.request) {
+        // Request made but no response received
+        errorMessage = 'Cannot connect to server. Please check your internet connection.';
+      } else {
+        // Something else happened
+        errorMessage = `Request error: ${error.message}`;
+      }
+      
+      alert(errorMessage);
     }
     setLoading(false);
   };
@@ -482,13 +510,13 @@ function App() {
             <div className="button-group">
               <button onClick={() => setCurrentStep(5)}>Back</button>
               <button className="btn-primary" onClick={handleSubmit}>
-                Get AI Recommendation
+                {loading ? 'Analyzing...' : 'Get AI Recommendation'}
               </button>
             </div>
           </div>
         );
 
-      case 7: // Results (changed from case 8)
+      case 7: // Results
         return results && (
           <div className="card results-card">
             <h2>Your Personalized Career Recommendation</h2>
@@ -568,6 +596,7 @@ This recommendation is tailored to your unique combination of academic backgroun
             <div className="spinner"></div>
             <h2>AI is analyzing your profile...</h2>
             <p>This will take just a moment</p>
+            <p><small>Connecting to: {API_BASE_URL}</small></p>
           </div>
         </div>
       </div>
@@ -579,6 +608,9 @@ This recommendation is tailored to your unique combination of academic backgroun
       <div className="App-header">
         <h1>🎯 PathFinder AI</h1>
         <p>AI-Powered Career Decision Assistant for Masters Students</p>
+        {process.env.NODE_ENV === 'development' && (
+          <p><small>API: {API_BASE_URL}</small></p>
+        )}
       </div>
 
       <div className="container">
