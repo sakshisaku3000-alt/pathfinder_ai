@@ -15,7 +15,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
-app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
+build_dir = os.path.join(os.path.dirname(__file__),"frontend","build")
+
+if os.path.exists(build_dir):
+    app.mount("/", StaticFiles(directory=build_dir, html=True), name="frontend")
+else:
+    raise RuntimeError(f"Not found")
 
 #frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 # Need CORS so React frontend can talk to this backend
