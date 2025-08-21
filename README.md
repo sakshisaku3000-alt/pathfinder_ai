@@ -1,6 +1,6 @@
 # PathFinder AI - Career Decision Assistant
 
-An AI-powered web application that helps Master's students make informed decisions between pursuing a PhD or entering industry careers.
+An AI-powered web application that helps Masters students make informed decisions between pursuing a PhD or entering industry careers.
 
 ## Features
 
@@ -93,6 +93,25 @@ The application will open at `http://localhost:3000`
 ### `cd frontend`
 ### `npm test`
 
+
+## Project Structure
+
+```
+pathfinder-ai/
+├── backend/
+│   ├── main.py           # FastAPI application
+│   ├── requirements.txt  # Python dependencies
+│   └── test_main.py      # API tests
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── App.js        # Main React component
+│   │   ├── App.css       # Styling
+│   │   └── index.js      # Entry point
+│   └── package.json
+└── README.md
+```
+
 ## API Endpoints
 
 * `GET /` - API information
@@ -117,7 +136,16 @@ The application will open at `http://localhost:3000`
 
 3. Results include:
    * Primary recommendation (PhD/Industry/Both)
+   * Confidence level
    * Detailed editable analysis
+   * Personalized insights and action items
+
+## Key Design Decisions
+
+* **No Database**: Simplifies MVP, reduces complexity
+* **Single Editable Text Area**: Cleaner UX for results
+* **Fallback Responses**: Ensures functionality if API fails
+* **Step-by-Step Assessment**: Reduces cognitive load
 
 ## Contributing
 
